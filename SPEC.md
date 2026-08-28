@@ -59,11 +59,16 @@ AlarmKit publishes no fixed maximum, but the system imposes a resource-dependent
 
 If an alert degrades to `UNNotification`, it loses Focus-piercing delivery — which is the entire product thesis. Notifications may be used for genuinely ambient nudges, but never as a silent fallback for a missed alarm.
 
-### 3.5 ⚠️ Unresolved: the AlarmKit entitlement
+### 3.5 ✅ Resolved: there is no AlarmKit entitlement
 
-`com.apple.developer.alarmkit` may be a managed entitlement requiring Apple approval. Multiple developers report the capability not appearing in the Developer Portal, causing device builds to fail with *"Provisioning profile doesn't include the com.apple.developer.alarmkit entitlement"* — while the Simulator works fine with only the Info.plist key.
+Earlier drafts of this spec claimed `com.apple.developer.alarmkit` was a managed entitlement requiring Apple approval, citing a Developer Forums thread about it not appearing in the Developer Portal. **That entitlement does not exist.** The forum thread in question ([developer.apple.com/forums/thread/797950](https://developer.apple.com/forums/thread/797950)) concluded that the entitlement was an LLM hallucination — the reporting developer had added a fabricated `com.apple.developer.alarmkit` key to their entitlements file, and the build succeeded immediately once it was removed. An Apple engineer confirmed the pattern on the thread.
 
-Shipping apps using AlarmKit exist on the App Store, so a working path exists. **Status unknown for this project until a device build is attempted.** Do not assume either outcome.
+Apple's own AlarmKit sample documentation ([Scheduling an alarm with AlarmKit](https://developer.apple.com/documentation/AlarmKit/scheduling-an-alarm-with-alarmkit)) confirms the real, complete setup requirement:
+
+1. Add the `NSAlarmKitUsageDescription` key to Info.plist with a descriptive string (shown in the system authorization prompt).
+2. Call `AlarmManager.requestAuthorization()` at runtime, or let AlarmKit auto-prompt on first alarm creation.
+
+No Developer Portal capability, no capability request, no Apple review, no waiting period. This works on a normal signed build to a physical device with a free or paid account alike.
 
 ### 3.6 ⚠️ Unresolved: forwarded alarm actions on the Watch
 
@@ -259,8 +264,8 @@ Mandatory, per §3.3.
 
 Answer these empirically. They are cheap and they gate real design decisions.
 
-1. **Is the AlarmKit entitlement obtainable?** Add the capability in Xcode's Signing & Capabilities, build to a physical iPhone. If it fails with the provisioning error, open a DTS ticket. *(Highest risk item in the project.)*
-2. **What actions does the forwarded alarm presentation expose on the Watch?** Schedule a trivial alarm, let it fire while wearing the Series 11, observe the buttons. **§5.4 depends entirely on this.**
+1. ~~Is the AlarmKit entitlement obtainable?~~ **Resolved — see §3.5. There is no entitlement to obtain.** Just add `NSAlarmKitUsageDescription` to Info.plist.
+2. **What actions does the forwarded alarm presentation expose on the Watch?** Schedule a trivial alarm, let it fire while wearing the Series 11, observe the buttons. **§5.4 depends entirely on this. This is now the highest-risk open item.**
 3. **How many haptic identities are actually distinguishable?** Throwaway Watch app, one button per `WKHapticType`, wear it two days. Expect 3–4 before they blur.
 4. **Do competitor alerts pierce Sleep Focus?** Set a reminder in Huckleberry or Pump Log, enable Sleep Focus, sleep. If they break through, the core wedge is weaker than assumed.
 
@@ -269,7 +274,7 @@ Answer these empirically. They are cheap and they gate real design decisions.
 ## 10. Build order
 
 1. Get a plain SwiftUI app building to the physical iPhone (signing works end to end)
-2. Minimal AlarmKit test — one hardcoded alarm, two minutes out → **answers Q1 and Q2**
+2. Minimal AlarmKit test — one hardcoded alarm, two minutes out → **answers Q2** (Watch forwarded actions) and confirms real-device delivery works
 3. SwiftData model layer per §4
 4. Next-fire calculation and the action-semantics table in §5, with unit tests — this is pure logic and should be fully tested independent of UI
 5. Rolling-window scheduler and reconciliation per §6

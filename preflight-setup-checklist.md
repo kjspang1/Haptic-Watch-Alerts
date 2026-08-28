@@ -7,13 +7,13 @@ Ordered so the things with **external wait times** start first. Three items bloc
 
 ## ⚠️ Read this before you start: two findings that shape the plan
 
-**1. AlarmKit requires a managed entitlement from Apple.**
+**1. ✅ Correction: AlarmKit does NOT require a managed entitlement from Apple.**
 
-`com.apple.developer.alarmkit` is not a checkbox you enable — it's a *managed capability* that Apple must assign to your account after reviewing your use case. Without it, AlarmKit throws authorization errors on physical devices even when the user has granted permission.
+Earlier drafts of this checklist claimed `com.apple.developer.alarmkit` was a managed capability requiring Apple approval, citing reports of it not appearing in the Developer Portal. **That was wrong — it was traced to an LLM-fabricated entitlement**, confirmed by an Apple engineer on the relevant Developer Forums thread ([797950](https://developer.apple.com/forums/thread/797950)): a developer had invented a `com.apple.developer.alarmkit` entitlements-file key that Apple never defined, and their device build succeeded immediately once it was removed.
 
-This is why paying the $99 now is the right call: **you cannot request entitlements without a paid membership.** Your instinct was correct.
+The real, complete requirement, per Apple's own AlarmKit sample docs: add `NSAlarmKitUsageDescription` to Info.plist, and call `AlarmManager.requestAuthorization()` (or let it auto-prompt on first alarm). No portal capability, no request, no review, no waiting period — works on a free account too. This is no longer a risk item; skip straight to the device smoke test whenever you're ready.
 
-There is one complication. Developers have reported the AlarmKit capability not appearing in the Developer Portal for request, which blocked on-device testing while still working in the Simulator. That may be resolved by now — but treat it as **the single highest-risk unknown in your whole plan**, and find out on Day 1 rather than Week 3. Everything else on this list is routine; this one is not.
+Paying the $99 is still worth doing early for other reasons (TestFlight, provisioning that doesn't expire weekly, other real entitlements you may need later) — just not because of AlarmKit specifically.
 
 **2. AlarmKit is iOS-first, not native watchOS.**
 
@@ -69,17 +69,13 @@ Xcode 26.4 requires macOS 26.2 as a minimum. Earlier Xcode 26 builds ran on Sequ
 
 ---
 
-## Phase 2 — Request the AlarmKit entitlement (the moment enrollment clears)
+## Phase 2 — ~~Request the AlarmKit entitlement~~ Add the AlarmKit Info.plist key (no portal work needed)
 
-**Do not defer this.** It's the item most likely to block you, and it may involve an Apple review turnaround.
+**Correction:** there is no entitlement to request (see the note at the top of this doc). This phase is now trivial and doesn't block on Apple at all.
 
-- [ ] Sign in to [developer.apple.com/account](https://developer.apple.com/account)
-- [ ] Go to **Certificates, Identifiers & Profiles → Identifiers** and create your App ID (e.g. `com.yourname.alerts`)
-- [ ] Look for an **AlarmKit** capability in the App ID's capability list
-- [ ] If present: enable it and request access, describing your use case (medication reminders and time-critical care schedules — this is a legitimate, alarm-shaped use case and should read well to a reviewer)
-- [ ] If **not** present: check [Capability Requests](https://developer.apple.com/help/account/capabilities/capability-requests) and submit through that path. If neither route offers it, file a Developer Technical Support ticket and ask directly. Don't just wait and assume.
-
-**Fallback if the entitlement isn't obtainable:** AlarmKit reportedly works in the Simulator with only `NSAlarmKitUsageDescription` in Info.plist. You can build and iterate on the whole app against the Simulator while the entitlement is pending — you just can't validate real-device Focus-piercing behavior, which is your core differentiator. Plan around that, don't be surprised by it.
+- [ ] In Xcode, add `NSAlarmKitUsageDescription` to the app target's Info.plist, with a descriptive string (shown in the system authorization prompt) — e.g. "We'll schedule alerts for reminders you create."
+- [ ] Call `AlarmManager.requestAuthorization()` in code, or just let AlarmKit auto-prompt on first alarm creation.
+- [ ] That's the entire setup. Proceed straight to the device smoke test (Phase 6) — no waiting on Apple.
 
 ---
 
@@ -180,8 +176,8 @@ Don't consider setup finished until all five pass.
 
 Once the smoke test passes, these three answer your riskiest unknowns before you commit to a design:
 
-1. **Can you get the AlarmKit entitlement?** Covered in Phase 2. Highest risk on the board.
-2. **What actions does a forwarded alarm support on the Watch?** Schedule a trivial AlarmKit alarm, let it fire, and look at what the Watch presentation actually offers. Your Done-vs-Dismiss model depends on the answer.
+1. ~~Can you get the AlarmKit entitlement?~~ **Resolved — no entitlement exists.** See the correction at the top of this doc.
+2. **What actions does a forwarded alarm support on the Watch?** Schedule a trivial AlarmKit alarm, let it fire, and look at what the Watch presentation actually offers. Your Done-vs-Dismiss model depends on the answer. **This is now the highest-risk item on the board.**
 3. **How many haptics are actually distinguishable?** Throwaway Watch app, one button per `WKHapticType`, wear it two days. My guess is three or four before they blur — and that number caps how many alert categories are worth building.
 
 **And the zero-code one, tonight:** set a reminder in Huckleberry or Pump Log, turn on Sleep Focus, go to sleep. If it doesn't break through, your core wedge is confirmed for free.
@@ -193,9 +189,8 @@ Once the smoke test passes, these three answer your riskiest unknowns before you
 | Day | What happens |
 |---|---|
 | **Day 1** | Phase 0 checks, kick off enrollment, start macOS update and Xcode download. Mostly waiting. |
-| **Day 2–3** | Enrollment clears. Request AlarmKit entitlement immediately. Configure Xcode, set up devices, install supporting tools. |
-| **Day 3–4** | Smoke test. Run the three spikes. |
-| **Day 4+** | Entitlement may still be pending — build against the Simulator meanwhile. |
+| **Day 2–3** | Enrollment clears. Configure Xcode, set up devices, install supporting tools. AlarmKit needs no separate request. |
+| **Day 3–4** | Smoke test. Run the spikes (Watch forwarded-alarm actions is now the key one). |
 
 ---
 
@@ -204,7 +199,7 @@ Once the smoke test passes, these three answer your riskiest unknowns before you
 - [AlarmKit documentation](https://developer.apple.com/documentation/AlarmKit)
 - [Scheduling an alarm with AlarmKit](https://developer.apple.com/documentation/AlarmKit/scheduling-an-alarm-with-alarmkit)
 - [Wake up to the AlarmKit API — WWDC25](https://developer.apple.com/videos/play/wwdc2025/230/)
-- [AlarmKit entitlement discussion — Apple Developer Forums](https://developer.apple.com/forums/thread/797950)
+- [AlarmKit entitlement is fabricated — Apple Developer Forums (confirmed by Apple engineer)](https://developer.apple.com/forums/thread/797950)
 - [Capability requests](https://developer.apple.com/help/account/capabilities/capability-requests)
 - [Apple Developer Program enrollment](https://developer.apple.com/help/account/membership/program-enrollment/)
 - [Enrolling with the Apple Developer app](https://developer.apple.com/help/account/membership/enrolling-in-the-app/)
