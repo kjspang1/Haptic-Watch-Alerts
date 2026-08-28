@@ -10,6 +10,7 @@ import CoreData
 
 struct ContentView: View {
     @Environment(\.managedObjectContext) private var viewContext
+    @State private var showingAlarmKitSpike = false
 
     @FetchRequest(
         sortDescriptors: [NSSortDescriptor(keyPath: \Item.timestamp, ascending: true)],
@@ -35,12 +36,20 @@ struct ContentView: View {
                 }
 #endif
                 ToolbarItem {
+                    Button("AlarmKit Spike") {
+                        showingAlarmKitSpike = true
+                    }
+                }
+                ToolbarItem {
                     Button(action: addItem) {
                         Label("Add Item", systemImage: "plus")
                     }
                 }
             }
             Text("Select an item")
+        }
+        .sheet(isPresented: $showingAlarmKitSpike) {
+            AlarmKitSpikeView()
         }
     }
 
