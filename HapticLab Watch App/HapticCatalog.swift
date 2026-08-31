@@ -52,14 +52,28 @@ enum Haptic: String, CaseIterable, Codable {
     }
 }
 
-/// A candidate alert identity: either a single system haptic or a short
-/// sequence of them. Sequences are only playable while the app is
-/// foreground-active (see SPEC §3.1) — this catalog exists to answer
-/// whether patterns are *worth* pursuing, not to ship them as-is.
+/// Delivery timing for the burst style. One knob set, applied uniformly —
+/// the pattern is not per-reminder configurable by design. Identity comes
+/// from *which* haptic plays; the burst only makes it easier to notice.
+enum BurstTiming {
+    /// Taps per burst.
+    static let tapsPerBurst = 3
+    /// Gap between taps inside one burst.
+    static let inBurstGap: TimeInterval = 0.14
+    /// The "beat" of silence before the burst repeats.
+    static let betweenBursts: TimeInterval = 0.7
+    /// How many bursts to play in the lab. Real alerts would repeat until acknowledged.
+    static let burstCount = 2
+}
+
+/// A candidate alert identity. Sequences are only playable while the app is
+/// foreground-active (SPEC §3.1) — this catalog exists to answer whether the
+/// burst delivery is *worth* pursuing, not to ship as-is.
 struct HapticPattern: Identifiable, Hashable {
     let id: String
     let label: String
-    /// Delay *before* each step. First step usually 0.
+    let haptic: Haptic
+    /// Delay *before* each step. First step is 0.
     let steps: [(haptic: Haptic, delay: TimeInterval)]
 
     static func == (a: HapticPattern, b: HapticPattern) -> Bool { a.id == b.id }
@@ -76,46 +90,47 @@ struct HapticPattern: Identifiable, Hashable {
         }
     }
 
-    /// One entry per raw WKHapticType.
+    /// Baseline: one tap of the raw system haptic.
     static let singles: [HapticPattern] = Haptic.allCases.map {
-        HapticPattern(id: $0.rawValue, label: $0.label, steps: [($0, 0)])
+        HapticPattern(id: $0.rawValue, label: $0.label, haptic: $0, steps: [($0, 0)])
     }
 
-    /// Sequences designed to differ in *rhythm and count*, not just texture —
-    /// the hypothesis being that count is easier to perceive than timbre when
-    /// you are distracted.
-    static let sequences: [HapticPattern] = [
-        HapticPattern(id: "seq.double", label: "Double Tap",
-                      steps: [(.click, 0), (.click, 0.15)]),
-        HapticPattern(id: "seq.triple", label: "Triple Tap",
-                      steps: [(.click, 0), (.click, 0.15), (.click, 0.15)]),
-        HapticPattern(id: "seq.longShort", label: "Long then Short",
-                      steps: [(.notification, 0), (.click, 0.4)]),
-        HapticPattern(id: "seq.rising", label: "Rising",
-                      steps: [(.directionUp, 0), (.directionUp, 0.3)]),
-        HapticPattern(id: "seq.falling", label: "Falling",
-                      steps: [(.directionDown, 0), (.directionDown, 0.3)]),
-        HapticPattern(id: "seq.heartbeat", label: "Heartbeat",
-                      steps: [(.click, 0), (.click, 0.12), (.click, 0.5), (.click, 0.12)]),
-    ]
+    /// The proposed delivery: N quick taps of the *same* haptic, a beat of
+    /// silence, then repeat. Same identity as the single, louder presentation.
+    static let bursts: [HapticPattern] = Haptic.allCases.map { haptic in
+        var steps: [(haptic: Haptic, delay: TimeInterval)] = []
+        for burst in 0..<BurstTiming.burstCount {
+            for tap in 0..<BurstTiming.tapsPerBurst {
+                let delay: TimeInterval = (burst == 0 && tap == 0)
+                    ? 0
+                    : (tap == 0 ? BurstTiming.betweenBursts : BurstTiming.inBurstGap)
+                steps.append((haptic, delay))
+            }
+        }
+        return HapticPattern(id: "burst.\(haptic.rawValue)",
+                             label: haptic.label,
+                             haptic: haptic,
+                             steps: steps)
+    }
 }
 
+/// Singles vs bursts is a straight A/B on the same nine identities — run
+/// both and compare accuracy to see whether the burst delivery actually
+/// buys distinguishability or just makes everything more noticeable.
 enum QuizSet: String, CaseIterable {
-    case singles, sequences, all
+    case singles, bursts
 
     var label: String {
         switch self {
         case .singles: "Singles"
-        case .sequences: "Patterns"
-        case .all: "Both"
+        case .bursts: "Bursts"
         }
     }
 
     var patterns: [HapticPattern] {
         switch self {
         case .singles: HapticPattern.singles
-        case .sequences: HapticPattern.sequences
-        case .all: HapticPattern.singles + HapticPattern.sequences
+        case .bursts: HapticPattern.bursts
         }
     }
 }

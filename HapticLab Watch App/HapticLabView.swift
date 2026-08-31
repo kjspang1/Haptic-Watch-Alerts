@@ -7,7 +7,7 @@ import SwiftUI
 
 struct HapticLabView: View {
     @State private var results = QuizResults()
-    @State private var quizSet: QuizSet = .singles
+    @State private var quizSet: QuizSet = .bursts
 
     var body: some View {
         TabView {
@@ -27,13 +27,13 @@ struct LearnView: View {
     var body: some View {
         NavigationStack {
             List {
-                Section("Singles") {
-                    ForEach(HapticPattern.singles) { p in
+                Section("Bursts") {
+                    ForEach(HapticPattern.bursts) { p in
                         Button(p.label) { p.play() }
                     }
                 }
-                Section("Patterns") {
-                    ForEach(HapticPattern.sequences) { p in
+                Section("Singles (baseline)") {
+                    ForEach(HapticPattern.singles) { p in
                         Button(p.label) { p.play() }
                     }
                 }
