@@ -27,6 +27,7 @@
 		20C8064E303CDF8A002FAB29 /* Haptic Alert Watch.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Haptic Alert Watch.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		20C80660303CDF8C002FAB29 /* Haptic Alert WatchTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "Haptic Alert WatchTests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
 		20C8066A303CDF8C002FAB29 /* Haptic Alert WatchUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "Haptic Alert WatchUITests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
+		AA10000000000000000000A1 /* HapticLab Watch App.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "HapticLab Watch App.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -43,6 +44,11 @@
 		20C8066D303CDF8C002FAB29 /* Haptic Alert WatchUITests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = "Haptic Alert WatchUITests";
+			sourceTree = "<group>";
+		};
+		AA10000000000000000000A2 /* HapticLab Watch App */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = "HapticLab Watch App";
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -69,6 +75,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		AA10000000000000000000A5 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -78,6 +91,7 @@
 				20C80650303CDF8A002FAB29 /* Haptic Alert Watch */,
 				20C80663303CDF8C002FAB29 /* Haptic Alert WatchTests */,
 				20C8066D303CDF8C002FAB29 /* Haptic Alert WatchUITests */,
+				AA10000000000000000000A2 /* HapticLab Watch App */,
 				20C8064F303CDF8A002FAB29 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -88,6 +102,7 @@
 				20C8064E303CDF8A002FAB29 /* Haptic Alert Watch.app */,
 				20C80660303CDF8C002FAB29 /* Haptic Alert WatchTests.xctest */,
 				20C8066A303CDF8C002FAB29 /* Haptic Alert WatchUITests.xctest */,
+				AA10000000000000000000A1 /* HapticLab Watch App.app */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -163,6 +178,28 @@
 			productReference = 20C8066A303CDF8C002FAB29 /* Haptic Alert WatchUITests.xctest */;
 			productType = "com.apple.product-type.bundle.ui-testing";
 		};
+		AA10000000000000000000A3 /* HapticLab Watch App */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = AA10000000000000000000A7 /* Build configuration list for PBXNativeTarget "HapticLab Watch App" */;
+			buildPhases = (
+				AA10000000000000000000A4 /* Sources */,
+				AA10000000000000000000A5 /* Frameworks */,
+				AA10000000000000000000A6 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				AA10000000000000000000A2 /* HapticLab Watch App */,
+			);
+			name = "HapticLab Watch App";
+			packageProductDependencies = (
+			);
+			productName = "HapticLab Watch App";
+			productReference = AA10000000000000000000A1 /* HapticLab Watch App.app */;
+			productType = "com.apple.product-type.application";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -184,6 +221,9 @@
 						CreatedOnToolsVersion = 26.6;
 						TestTargetID = 20C8064D303CDF8A002FAB29;
 					};
+					AA10000000000000000000A3 = {
+						CreatedOnToolsVersion = 26.6;
+					};
 				};
 			};
 			buildConfigurationList = 20C80649303CDF8A002FAB29 /* Build configuration list for PBXProject "Haptic Alert Watch" */;
@@ -203,6 +243,7 @@
 				20C8064D303CDF8A002FAB29 /* Haptic Alert Watch */,
 				20C8065F303CDF8C002FAB29 /* Haptic Alert WatchTests */,
 				20C80669303CDF8C002FAB29 /* Haptic Alert WatchUITests */,
+				AA10000000000000000000A3 /* HapticLab Watch App */,
 			);
 		};
 /* End PBXProject section */
@@ -229,6 +270,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		AA10000000000000000000A6 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
@@ -247,6 +295,13 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		20C80666303CDF8C002FAB29 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		AA10000000000000000000A4 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -575,6 +630,50 @@
 			};
 			name = Release;
 		};
+		AA10000000000000000000A8 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 9ZWWS632X4;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_WKApplication = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.kjspang.hapticlab;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = watchos;
+				SUPPORTED_PLATFORMS = "watchos watchsimulator";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 4;
+				WATCHOS_DEPLOYMENT_TARGET = 26.0;
+			};
+			name = Debug;
+		};
+		AA10000000000000000000A9 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 9ZWWS632X4;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_WKApplication = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.kjspang.hapticlab;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = watchos;
+				SUPPORTED_PLATFORMS = "watchos watchsimulator";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 4;
+				WATCHOS_DEPLOYMENT_TARGET = 26.0;
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -610,6 +709,15 @@
 			buildConfigurations = (
 				20C8067B303CDF8C002FAB29 /* Debug */,
 				20C8067C303CDF8C002FAB29 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		AA10000000000000000000A7 /* Build configuration list for PBXNativeTarget "HapticLab Watch App" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				AA10000000000000000000A8 /* Debug */,
+				AA10000000000000000000A9 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
