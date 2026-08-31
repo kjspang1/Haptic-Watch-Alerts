@@ -50,7 +50,15 @@ These were established through research and are **not** negotiable. Do not desig
 - Sessions cannot be scheduled more than **36 hours** in advance (`scheduledTooFarInAdvance`).
 - The user must make the app the **default responder** for the session type (`AutoLaunchAuthorizationStatus`).
 
-**On sound-paired haptics.** Earlier drafts claimed differentiation "comes from AlarmKit's sound-paired system alerts." Treat this as unverified and probably optimistic. Apple's "each sound has a synchronized haptic pattern" documentation refers to the **built-in system sounds a user picks in Settings**, not to arbitrary sound files shipped by a third-party app. Reports consistently indicate third-party watchOS alerts get the standard notification haptic regardless of sound. **Verify before designing a category system that depends on it.**
+**On sound-paired haptics — tested, and the answer is no.** Earlier drafts claimed differentiation "comes from AlarmKit's sound-paired system alerts." Tested on device with two custom sounds built to differ in rhythm (one sustained tone vs. three fast pips):
+
+| | iPhone | Apple Watch |
+|---|---|---|
+| Custom `AlertSound.named(_:)` | ✅ plays, clearly distinguishable | ❌ substitutes the standard alarm ping |
+
+**Custom AlarmKit sounds are an iPhone-only channel.** The forwarded Watch presentation ignores them. Apple's "each sound has a synchronized haptic pattern" line refers to the built-in sounds a user chooses in Settings, not to sound files a third-party app ships.
+
+⚠️ *On the haptics feeling "somewhat different" in that test:* discount it. The Watch played the **same** ping for both sounds, so there was no mechanism to produce a haptic difference, and the tester knew which sound was scheduled — the test was not blind. Any real difference must be demonstrated blind (`HapticLab Watch App` exists for exactly this) before a design depends on it.
 
 **Planning consequence:** assume the number of distinct *alerting* identities a shipped build can deliver is very small — plausibly one — until proven otherwise. This does not threaten the product thesis, because per §2 the differentiator is alarm-grade delivery and completion-relative recurrence, **not** a haptic vocabulary.
 
@@ -273,10 +281,13 @@ Mandatory, per §3.3.
 
 Rules that follow:
 
-- **Never put a sound or haptic picker in the UI.** Not at reminder creation, not in category settings, not anywhere. Assigning identity is the system's job.
+- **A custom sound picker is defensible — but it is an iPhone-only feature.** Testing (§3.1) confirms custom sounds play on the iPhone and are ignored by the Watch. If a picker ships, it must be described honestly as an iPhone alert sound. Never imply it changes anything on the wrist.
+- **Never put a haptic picker in the UI.** Not at reminder creation, not in category settings, not anywhere. There is no supported way to honour it.
 - **Auto-assign** an identity to each category from a fixed internal table when the category is created. If richer differentiation later proves deliverable, categories pick it up with no data migration and no user action.
 - **Category distinction is carried visually**, on the alert itself: title, SF Symbol, tint colour. Those are reliable today and cost nothing.
 - **Do not market or imply a haptic vocabulary.** A user told they can identify reminders by feel will notice quickly that they can't. This is the failure mode most likely to produce bad reviews, and it is entirely self-inflicted.
+
+**The asymmetry that matters:** sound differentiation lands on the iPhone, but §7 says Done must be reachable from the Watch and the phone must never be required. So the device that can carry alert identity is the device the user is *not* meant to reach for. That is not a reason to skip custom sounds — it is a reason not to build the product around them.
 
 The differentiator is alarm-grade delivery and completion-relative recurrence (§2). Product effort belongs on the alert itself and on the rolling-window timing being correct — not on an identity system the platform will not carry.
 
