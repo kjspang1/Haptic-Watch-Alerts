@@ -70,9 +70,26 @@ Apple's own AlarmKit sample documentation ([Scheduling an alarm with AlarmKit](h
 
 No Developer Portal capability, no capability request, no Apple review, no waiting period. This works on a normal signed build to a physical device with a free or paid account alike.
 
-### 3.6 ⚠️ Unresolved: forwarded alarm actions on the Watch
+### 3.6 ✅ Resolved: forwarded alarm actions on the Watch
 
-Unknown what buttons the forwarded alarm presentation exposes on watchOS. The Done-vs-Dismiss model in §5 depends on this. **Verify empirically before building the completion flow.**
+Verified empirically on an iPhone 14 Pro + Apple Watch Series 11 (iOS/watchOS 26) with the spike in `AlarmKitSpike.swift`. **The Done-vs-Dismiss model in §5 is viable.**
+
+Findings:
+
+1. **The custom secondary button does forward to the Watch.** The alert presented on the wrist showed two stacked buttons — a custom **Done** and the system **Stop**. A one-tap Done from the Watch is achievable, so §7's most important interaction is not blocked.
+2. **The alarm fires on both the iPhone and the Watch simultaneously**, not on one or the other.
+3. ⚠️ **`secondaryButtonBehavior: .custom` does not stop the alarm.** The system hands control to your intent and does nothing else. In the first spike run, tapping Done on the Watch silenced only the Watch — **the iPhone kept alarming** — because the intent didn't stop it. The custom intent must call `AlarmManager.shared.stop(id:)` itself.
+4. **The system Stop button does stop the alarm on both devices** automatically; its `stopIntent` is a notification hook, not the thing performing the stop.
+
+**Consequence for §5:** the completion path must always stop the alarm explicitly inside the Done intent. Forgetting this produces the worst possible failure — a "resolved" reminder that keeps screaming on the phone in another room.
+
+### 3.7 Build requirement: Info.plist keys must be in a real Info.plist
+
+`NSAlarmKitUsageDescription` is mandatory — without it AlarmKit refuses to schedule anything, failing with `Error Domain=com.apple.AlarmKit.Alarm Code=1`.
+
+⚠️ Setting it via Xcode's `INFOPLIST_KEY_NSAlarmKitUsageDescription` build setting **silently does nothing.** That shortcut only maps an allowlist of recognized keys, and this one isn't on it, so it never reaches the built plist and there is no warning. The project uses a real `Info.plist` at the repo root via `INFOPLIST_FILE`; verify keys landed with `plutil -p "<built>.app/Info.plist"` rather than trusting build settings.
+
+`NSSupportsLiveActivities` is also set, since `AlarmAttributes` conforms to `ActivityKit.ActivityAttributes` and the alarm presentation is backed by a Live Activity.
 
 ---
 
@@ -181,7 +198,13 @@ Relative schedules drift forward across the day by design — that is correct fo
 
 For a fixed alarm, nobody cares which one the user hit. For a relative alarm, **the entire next fire time depends on the answer.** The alarm's presentation cannot offer only "stop."
 
-⚠️ See §3.6 — whether this is achievable on the forwarded Watch presentation is unverified.
+✅ **Verified achievable — see §3.6.** The Watch presents a custom **Done** button alongside the system **Stop**, so the two actions are distinguishable from the wrist.
+
+Implementation requirements that follow from the spike:
+
+- **Done** is the custom secondary button (`secondaryButtonBehavior: .custom`) backed by a `LiveActivityIntent`. That intent **must call `AlarmManager.shared.stop(id:)` itself** — the system will not, and the iPhone keeps alarming if it's omitted. Log `.done` and re-anchor in the same intent.
+- **Stop** is the system-provided button. It stops the alarm on both devices on its own; its `stopIntent` is where `.dismissed` gets logged and the §5.2 dismissal policy applies.
+- The custom-labeled `stopButton` API is deprecated — the system owns that button's appearance. The secondary button is the only label you control, so **"Done" must be the secondary.**
 
 ---
 
@@ -265,7 +288,7 @@ Mandatory, per §3.3.
 Answer these empirically. They are cheap and they gate real design decisions.
 
 1. ~~Is the AlarmKit entitlement obtainable?~~ **Resolved — see §3.5. There is no entitlement to obtain.** Just add `NSAlarmKitUsageDescription` to Info.plist.
-2. **What actions does the forwarded alarm presentation expose on the Watch?** Schedule a trivial alarm, let it fire while wearing the Series 11, observe the buttons. **§5.4 depends entirely on this. This is now the highest-risk open item.**
+2. ~~What actions does the forwarded alarm presentation expose on the Watch?~~ **Resolved — see §3.6.** A custom Done plus the system Stop both appear on the Watch; the custom intent must stop the alarm itself.
 3. **How many haptic identities are actually distinguishable?** Throwaway Watch app, one button per `WKHapticType`, wear it two days. Expect 3–4 before they blur.
 4. **Do competitor alerts pierce Sleep Focus?** Set a reminder in Huckleberry or Pump Log, enable Sleep Focus, sleep. If they break through, the core wedge is weaker than assumed.
 

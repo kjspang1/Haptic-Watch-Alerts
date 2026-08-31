@@ -177,8 +177,8 @@ Don't consider setup finished until all five pass.
 Once the smoke test passes, these three answer your riskiest unknowns before you commit to a design:
 
 1. ~~Can you get the AlarmKit entitlement?~~ **Resolved — no entitlement exists.** See the correction at the top of this doc.
-2. **What actions does a forwarded alarm support on the Watch?** Schedule a trivial AlarmKit alarm, let it fire, and look at what the Watch presentation actually offers. Your Done-vs-Dismiss model depends on the answer. **This is now the highest-risk item on the board.**
-3. **How many haptics are actually distinguishable?** Throwaway Watch app, one button per `WKHapticType`, wear it two days. My guess is three or four before they blur — and that number caps how many alert categories are worth building.
+2. ~~What actions does a forwarded alarm support on the Watch?~~ **Resolved — the Watch shows a custom Done alongside the system Stop.** See SPEC.md §3.6 for the full findings, including the trap that a custom secondary button must stop the alarm itself.
+3. **How many haptics are actually distinguishable?** Throwaway Watch app, one button per `WKHapticType`, wear it two days. My guess is three or four before they blur — and that number caps how many alert categories are worth building. **This is now the top remaining unknown.**
 
 **And the zero-code one, tonight:** set a reminder in Huckleberry or Pump Log, turn on Sleep Focus, go to sleep. If it doesn't break through, your core wedge is confirmed for free.
 

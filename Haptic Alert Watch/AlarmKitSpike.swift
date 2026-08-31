@@ -51,6 +51,12 @@ struct SpikeDoneIntent: LiveActivityIntent {
     init(alarmID: String) { self.alarmID = alarmID }
 
     func perform() async throws -> some IntentResult {
+        // secondaryButtonBehavior: .custom means the system does NOT stop the
+        // alarm for us — without this the alarm keeps sounding on the iPhone
+        // even after Done is tapped on the Watch.
+        if let id = UUID(uuidString: alarmID) {
+            try AlarmManager.shared.stop(id: id)
+        }
         AlarmSpikeLog.record("DONE (secondary) button tapped")
         return .result()
     }
