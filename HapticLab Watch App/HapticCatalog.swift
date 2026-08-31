@@ -12,7 +12,7 @@
 import Foundation
 import WatchKit
 
-enum Haptic: String, CaseIterable, Identifiable, Codable {
+enum Haptic: String, CaseIterable, Codable {
     case notification
     case directionUp
     case directionDown
@@ -22,8 +22,6 @@ enum Haptic: String, CaseIterable, Identifiable, Codable {
     case start
     case stop
     case click
-
-    var id: String { rawValue }
 
     var label: String {
         switch self {
@@ -52,8 +50,72 @@ enum Haptic: String, CaseIterable, Identifiable, Codable {
         case .click: .click
         }
     }
+}
+
+/// A candidate alert identity: either a single system haptic or a short
+/// sequence of them. Sequences are only playable while the app is
+/// foreground-active (see SPEC §3.1) — this catalog exists to answer
+/// whether patterns are *worth* pursuing, not to ship them as-is.
+struct HapticPattern: Identifiable, Hashable {
+    let id: String
+    let label: String
+    /// Delay *before* each step. First step usually 0.
+    let steps: [(haptic: Haptic, delay: TimeInterval)]
+
+    static func == (a: HapticPattern, b: HapticPattern) -> Bool { a.id == b.id }
+    func hash(into h: inout Hasher) { h.combine(id) }
 
     func play() {
-        WKInterfaceDevice.current().play(wkType)
+        Task {
+            for step in steps {
+                if step.delay > 0 {
+                    try? await Task.sleep(for: .seconds(step.delay))
+                }
+                WKInterfaceDevice.current().play(step.haptic.wkType)
+            }
+        }
+    }
+
+    /// One entry per raw WKHapticType.
+    static let singles: [HapticPattern] = Haptic.allCases.map {
+        HapticPattern(id: $0.rawValue, label: $0.label, steps: [($0, 0)])
+    }
+
+    /// Sequences designed to differ in *rhythm and count*, not just texture —
+    /// the hypothesis being that count is easier to perceive than timbre when
+    /// you are distracted.
+    static let sequences: [HapticPattern] = [
+        HapticPattern(id: "seq.double", label: "Double Tap",
+                      steps: [(.click, 0), (.click, 0.15)]),
+        HapticPattern(id: "seq.triple", label: "Triple Tap",
+                      steps: [(.click, 0), (.click, 0.15), (.click, 0.15)]),
+        HapticPattern(id: "seq.longShort", label: "Long then Short",
+                      steps: [(.notification, 0), (.click, 0.4)]),
+        HapticPattern(id: "seq.rising", label: "Rising",
+                      steps: [(.directionUp, 0), (.directionUp, 0.3)]),
+        HapticPattern(id: "seq.falling", label: "Falling",
+                      steps: [(.directionDown, 0), (.directionDown, 0.3)]),
+        HapticPattern(id: "seq.heartbeat", label: "Heartbeat",
+                      steps: [(.click, 0), (.click, 0.12), (.click, 0.5), (.click, 0.12)]),
+    ]
+}
+
+enum QuizSet: String, CaseIterable {
+    case singles, sequences, all
+
+    var label: String {
+        switch self {
+        case .singles: "Singles"
+        case .sequences: "Patterns"
+        case .all: "Both"
+        }
+    }
+
+    var patterns: [HapticPattern] {
+        switch self {
+        case .singles: HapticPattern.singles
+        case .sequences: HapticPattern.sequences
+        case .all: HapticPattern.singles + HapticPattern.sequences
+        }
     }
 }
