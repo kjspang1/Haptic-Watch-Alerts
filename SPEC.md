@@ -104,6 +104,16 @@ Findings:
 
 ---
 
+### 3.8 Delivery routing and a known AlarmKit non-fire
+
+**Watch vs. iPhone routing is the system's call, not ours.** If the iPhone is unlocked and in use, the alert presents there and the Watch is skipped; if the iPhone is locked or asleep and the Watch is unlocked and on the wrist, the Watch gets it. There is no setting to force both, and none is needed — the target scenario (phone on the nightstand, 3am) is the locked case where the Watch wins.
+
+*Testing note:* lock the phone before a test alarm fires, or you will only ever see the iPhone presentation.
+
+⚠️ **Known bug: alarms may silently fail to present when an app is foregrounded in landscape.** Reported against the stock Reminders app and Apple's own AlarmKit sample; the Clock app is unaffected. The reported workaround is to give every alarm a **1-second `preAlert`**. For this app a silent non-fire is the worst failure mode that exists, so treat this as a reliability requirement, verify it on device, and add a regression test around it rather than trusting the workaround indefinitely.
+
+---
+
 ## 4. Data model
 
 The central design decision: **separate the rule from the instance.** A `Reminder` is a rule. A `ScheduledOccurrence` is a materialized future firing mapped to an AlarmKit alarm. This split is what makes rolling-window scheduling and reconciliation tractable.
