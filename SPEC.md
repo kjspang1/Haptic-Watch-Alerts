@@ -39,9 +39,20 @@ These were established through research and are **not** negotiable. Do not desig
 
 ### 3.1 Custom haptic patterns cannot fire in the background
 
-`WKInterfaceDevice.play()` has no effect when the app is inactive or backgrounded. The only exemption is an active workout session, which does not apply here.
+`WKInterfaceDevice.play()` has no effect when the app is inactive or backgrounded.
 
-**Consequence:** there is no way to author a "haptic language" where distinct buzz patterns identify distinct reminders while the app is closed. Differentiation comes from AlarmKit's sound-paired system alerts. Arbitrary haptic sequences work only in the foreground.
+**Consequence:** there is no way to author a "haptic language" where distinct buzz patterns identify distinct reminders while the app is closed. Arbitrary haptic sequences work only in the foreground.
+
+**Correction to earlier drafts:** the workout session is *not* the only exemption. `WKExtendedRuntimeSession` with the smart-alarm type also runs in the background, and its `notifyUser(hapticType:repeatHandler:)` lets the repeat handler change the haptic type on each repetition — a genuine app-authored haptic sequence while backgrounded. It is nonetheless **not a viable foundation for this app**:
+
+- Only **one session may be scheduled at a time**, so multiple pending reminders cannot each hold one.
+- `startAtDate:` **must be called while the watchOS app is foreground-active**, so a completion-relative reminder cannot re-arm itself after Done without the user opening the Watch app.
+- Sessions cannot be scheduled more than **36 hours** in advance (`scheduledTooFarInAdvance`).
+- The user must make the app the **default responder** for the session type (`AutoLaunchAuthorizationStatus`).
+
+**On sound-paired haptics.** Earlier drafts claimed differentiation "comes from AlarmKit's sound-paired system alerts." Treat this as unverified and probably optimistic. Apple's "each sound has a synchronized haptic pattern" documentation refers to the **built-in system sounds a user picks in Settings**, not to arbitrary sound files shipped by a third-party app. Reports consistently indicate third-party watchOS alerts get the standard notification haptic regardless of sound. **Verify before designing a category system that depends on it.**
+
+**Planning consequence:** assume the number of distinct *alerting* identities a shipped build can deliver is very small — plausibly one — until proven otherwise. This does not threaten the product thesis, because per §2 the differentiator is alarm-grade delivery and completion-relative recurrence, **not** a haptic vocabulary.
 
 ### 3.2 AlarmKit is iOS-first, not native watchOS
 

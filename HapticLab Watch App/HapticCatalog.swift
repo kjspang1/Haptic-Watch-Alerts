@@ -59,7 +59,7 @@ enum BurstTiming {
     /// Taps per burst.
     static let tapsPerBurst = 3
     /// Gap between taps inside one burst.
-    static let inBurstGap: TimeInterval = 0.14
+    static let inBurstGap: TimeInterval = 0.25
     /// The "beat" of silence before the burst repeats.
     static let betweenBursts: TimeInterval = 0.7
     /// How many bursts to play in the lab. Real alerts would repeat until acknowledged.
