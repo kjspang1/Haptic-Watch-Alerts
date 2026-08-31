@@ -6,16 +6,19 @@
 //
 
 import SwiftUI
-import CoreData
+import SwiftData
 
 @main
 struct Haptic_Alert_WatchApp: App {
-    let persistenceController = PersistenceController.shared
-
     var body: some Scene {
         WindowGroup {
             ContentView()
-                .environment(\.managedObjectContext, persistenceController.container.viewContext)
         }
+        .modelContainer(for: [
+            Reminder.self,
+            CompletionEvent.self,
+            AlertCategory.self,
+            ScheduledOccurrence.self,
+        ])
     }
 }

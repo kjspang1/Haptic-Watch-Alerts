@@ -4,94 +4,108 @@
 //
 //  Created by Kevin Spang on 8/24/26.
 //
+//  Placeholder shell. The real create/list/edit UI is SPEC §10 step 6;
+//  this exists so the model layer is inspectable on device in the meantime.
+//
 
 import SwiftUI
-import CoreData
+import SwiftData
 
 struct ContentView: View {
-    @Environment(\.managedObjectContext) private var viewContext
+    @Environment(\.modelContext) private var context
+    @Query(sort: \Reminder.createdAt) private var reminders: [Reminder]
+    @Query(sort: \AlertCategory.name) private var categories: [AlertCategory]
+
     @State private var showingAlarmKitSpike = false
 
-    @FetchRequest(
-        sortDescriptors: [NSSortDescriptor(keyPath: \Item.timestamp, ascending: true)],
-        animation: .default)
-    private var items: FetchedResults<Item>
-
     var body: some View {
-        NavigationView {
+        NavigationStack {
             List {
-                ForEach(items) { item in
-                    NavigationLink {
-                        Text("Item at \(item.timestamp!, formatter: itemFormatter)")
-                    } label: {
-                        Text(item.timestamp!, formatter: itemFormatter)
+                Section("Reminders") {
+                    if reminders.isEmpty {
+                        Text("No reminders yet")
+                            .foregroundStyle(.secondary)
+                    }
+                    ForEach(reminders) { reminder in
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(reminder.title)
+                            Text(reminder.schedule.shortDescription)
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                    .onDelete(perform: deleteReminders)
+                }
+
+                Section("Categories") {
+                    ForEach(categories) { category in
+                        Label(category.name, systemImage: category.symbolName)
                     }
                 }
-                .onDelete(perform: deleteItems)
             }
+            .navigationTitle("Alerts")
             .toolbar {
-#if os(iOS)
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    EditButton()
+                ToolbarItem(placement: .topBarLeading) {
+                    Button("Spike") { showingAlarmKitSpike = true }
                 }
-#endif
-                ToolbarItem {
-                    Button("AlarmKit Spike") {
-                        showingAlarmKitSpike = true
-                    }
-                }
-                ToolbarItem {
-                    Button(action: addItem) {
-                        Label("Add Item", systemImage: "plus")
-                    }
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button("Sample", systemImage: "plus", action: addSample)
                 }
             }
-            Text("Select an item")
-        }
-        .sheet(isPresented: $showingAlarmKitSpike) {
-            AlarmKitSpikeView()
-        }
-    }
-
-    private func addItem() {
-        withAnimation {
-            let newItem = Item(context: viewContext)
-            newItem.timestamp = Date()
-
-            do {
-                try viewContext.save()
-            } catch {
-                // Replace this implementation with code to handle the error appropriately.
-                // fatalError() causes the application to generate a crash log and terminate. You should not use this function in a shipping application, although it may be useful during development.
-                let nsError = error as NSError
-                fatalError("Unresolved error \(nsError), \(nsError.userInfo)")
+            .sheet(isPresented: $showingAlarmKitSpike) {
+                AlarmKitSpikeView()
             }
         }
     }
 
-    private func deleteItems(offsets: IndexSet) {
-        withAnimation {
-            offsets.map { items[$0] }.forEach(viewContext.delete)
+    /// Temporary: exercises the model layer until step 6 builds real entry UI.
+    private func addSample() {
+        let category: AlertCategory
+        if let existing = categories.first {
+            category = existing
+        } else {
+            category = AlertCategory(
+                name: "Medication",
+                symbolName: "pills.fill",
+                colorHex: "#FF375F",
+                existingCount: categories.count
+            )
+            context.insert(category)
+        }
 
-            do {
-                try viewContext.save()
-            } catch {
-                // Replace this implementation with code to handle the error appropriately.
-                // fatalError() causes the application to generate a crash log and terminate. You should not use this function in a shipping application, although it may be useful during development.
-                let nsError = error as NSError
-                fatalError("Unresolved error \(nsError), \(nsError.userInfo)")
-            }
+        let reminder = Reminder(
+            title: "Sample reminder",
+            categoryID: category.id,
+            schedule: .relativeToCompletion(interval: 3 * 3600, anchorReset: nil)
+        )
+        context.insert(reminder)
+    }
+
+    private func deleteReminders(at offsets: IndexSet) {
+        for index in offsets {
+            context.delete(reminders[index])
         }
     }
 }
 
-private let itemFormatter: DateFormatter = {
-    let formatter = DateFormatter()
-    formatter.dateStyle = .short
-    formatter.timeStyle = .medium
-    return formatter
-}()
+extension ScheduleType {
+    var shortDescription: String {
+        switch self {
+        case let .fixed(times, weekdays):
+            let days = weekdays.isEmpty ? "every day" : "\(weekdays.count) days/wk"
+            return "Fixed · \(times.count) time(s) · \(days)"
+        case let .relativeToCompletion(interval, _):
+            return "Every \(Int(interval / 3600))h after completion"
+        case let .oneOff(date):
+            return "Once · \(date.formatted(date: .abbreviated, time: .shortened))"
+        }
+    }
+}
 
 #Preview {
-    ContentView().environment(\.managedObjectContext, PersistenceController.preview.container.viewContext)
+    ContentView()
+        .modelContainer(for: [
+            Reminder.self, CompletionEvent.self,
+            AlertCategory.self, ScheduledOccurrence.self,
+        ], inMemory: true)
 }

@@ -192,6 +192,18 @@ enum OccurrenceState: String, Codable {
 
 **Note the `payload: Data?` field.** v1 always writes `nil`. It exists now so that adding "4 oz" or "2 tablets" in v2 doesn't require touching the completion path everywhere.
 
+### 4.1 ⚠️ SwiftData cannot store `ScheduleType` directly
+
+`ScheduleType` is an enum with associated values carrying collections (`[DateComponents]`, `Set<Int>`). Declaring it as a stored `@Model` property **compiles and installs cleanly, then traps inside `ModelContainer` on the first SwiftUI view update.** Verified by bisection: direct property crashes, JSON-encoded `Data` with a computed accessor does not.
+
+`Reminder` therefore stores `scheduleData: Data` and exposes `schedule` as a computed property. Nothing queries on schedule contents, so losing predicate support costs nothing.
+
+The `#Index` macro was also dropped — it was speculative and nothing measured needed it.
+
+**The trap to remember:** an invalid SwiftData schema is not a build error. It builds, signs, installs, and launches, then dies inside the first view update — and it takes the *unit test host* down with it, so unit tests report "crashed before establishing connection" rather than a useful failure. `LaunchSmokeTests` exists to catch exactly this, and any new `@Model` property type should be verified by running it rather than by a successful build.
+
+*Debugging note:* `xcrun simctl launch` returns a PID as soon as the process spawns, so a returned PID does **not** mean the app survived. Sleep, then check `launchctl list`.
+
 ---
 
 ## 5. Scheduling and deferral logic
