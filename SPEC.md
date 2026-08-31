@@ -139,7 +139,7 @@ enum ScheduleType: Codable {
 final class AlertCategory {
     var id: UUID
     var name: String                  // "Medication", "Feeding", "Pets"
-    var soundID: String               // AlarmKit sound → determines paired haptic
+    var soundID: String               // Auto-assigned, never user-chosen (§7.1)
     var symbolName: String            // SF Symbol
     var colorHex: String
 }
@@ -257,8 +257,18 @@ Mandatory, per §3.3.
 - **Done must be reachable from the Watch in one tap.** This is the single most important interaction in the app.
 - **Never require the phone** to resolve an alert.
 - **No keyboard at alert time.** When v2 payload capture arrives, use preset chips (2 / 3 / 4 / 5 oz) with a rare manual fallback.
-- **Alert identity is per-category**, configured once in settings, not per-reminder. Users should not be choosing sounds at creation time.
-- ⚠️ **Assume ~3–4 distinguishable alert identities, not 10.** Verify by wearing the test app (see §9). Design the category system so a small number is not a limitation.
+### 7.1 Alert identity is assigned, never chosen
+
+**Design for one reliably distinct alerting identity.** Earlier drafts assumed 3–4 and told the user to pick from them. Both halves of that are now wrong (§3.1): there is no supported way for a third-party app to play an app-authored haptic sequence on a Focus-piercing alert, so the number of *feelable* identities a shipped build can deliver may be exactly one.
+
+Rules that follow:
+
+- **Never put a sound or haptic picker in the UI.** Not at reminder creation, not in category settings, not anywhere. Assigning identity is the system's job.
+- **Auto-assign** an identity to each category from a fixed internal table when the category is created. If richer differentiation later proves deliverable, categories pick it up with no data migration and no user action.
+- **Category distinction is carried visually**, on the alert itself: title, SF Symbol, tint colour. Those are reliable today and cost nothing.
+- **Do not market or imply a haptic vocabulary.** A user told they can identify reminders by feel will notice quickly that they can't. This is the failure mode most likely to produce bad reviews, and it is entirely self-inflicted.
+
+The differentiator is alarm-grade delivery and completion-relative recurrence (§2). Product effort belongs on the alert itself and on the rolling-window timing being correct — not on an identity system the platform will not carry.
 
 ---
 
@@ -269,7 +279,7 @@ Mandatory, per §3.3.
 - Fixed recurring alarms
 - Completion-relative alarms with deferral and re-anchoring
 - One-off alarms
-- Alert categories with distinct sound/haptic identity
+- Alert categories with visual identity (symbol, colour) and an auto-assigned alert sound — no user-facing sound or haptic picker (§7.1)
 - One-tap Done from the Watch, re-arming the next occurrence
 - Completion history (data captured; minimal UI)
 - Rolling-window AlarmKit scheduler with reconciliation
@@ -300,7 +310,7 @@ Answer these empirically. They are cheap and they gate real design decisions.
 
 1. ~~Is the AlarmKit entitlement obtainable?~~ **Resolved — see §3.5. There is no entitlement to obtain.** Just add `NSAlarmKitUsageDescription` to Info.plist.
 2. ~~What actions does the forwarded alarm presentation expose on the Watch?~~ **Resolved — see §3.6.** A custom Done plus the system Stop both appear on the Watch; the custom intent must stop the alarm itself.
-3. **How many haptic identities are actually distinguishable?** Throwaway Watch app, one button per `WKHapticType`, wear it two days. Expect 3–4 before they blur.
+3. ~~How many haptic identities are actually distinguishable?~~ **Descoped — no longer gates any decision.** `HapticLab Watch App` will answer it (singles vs. burst delivery, blind quiz, confusion matrix) if curiosity demands, but §3.1 shows an app-authored haptic sequence cannot reach a Focus-piercing alert regardless of the answer, and §7.1 now designs for a single auto-assigned identity. Run it only as a cheap upper bound, never as a gate.
 4. **Do competitor alerts pierce Sleep Focus?** Set a reminder in Huckleberry or Pump Log, enable Sleep Focus, sleep. If they break through, the core wedge is weaker than assumed.
 
 ---
@@ -314,7 +324,7 @@ Answer these empirically. They are cheap and they gate real design decisions.
 5. Rolling-window scheduler and reconciliation per §6
 6. iPhone UI: create, list, edit reminders
 7. Watch target: Done affordance
-8. Category and alert-identity configuration
+8. Category configuration — name, symbol, colour only. Alert identity is auto-assigned (§7.1), so there is no picker to build.
 
 **Test §5 heavily.** It's the part most likely to be subtly wrong, it's pure functions over dates, and bugs there produce alarms at wrong times — the single worst failure mode this app can have.
 
