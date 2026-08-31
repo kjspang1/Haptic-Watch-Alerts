@@ -66,9 +66,36 @@ struct SpikeMetadata: AlarmMetadata {
     init() {}
 }
 
+/// Test sounds for the "can a custom sound reach the Watch?" question.
+/// `oneLong` and `threeShort` differ in rhythm on purpose: if a pulsed
+/// sound produces a pulsed *feel* on the wrist, then sound is the channel
+/// that can carry alert identity (SPEC §3.1, §7.1).
+enum SpikeSound: String, CaseIterable, Identifiable {
+    case systemDefault, oneLong, threeShort
+
+    var id: String { rawValue }
+
+    var label: String {
+        switch self {
+        case .systemDefault: "System default"
+        case .oneLong: "One long tone"
+        case .threeShort: "Three short pips"
+        }
+    }
+
+    var alertSound: AlertConfiguration.AlertSound {
+        switch self {
+        case .systemDefault: .default
+        case .oneLong: .named("AlertOneLong.caf")
+        case .threeShort: .named("AlertThreeShort.caf")
+        }
+    }
+}
+
 struct AlarmKitSpikeView: View {
     @State private var status = "Idle"
     @State private var lastAction = AlarmSpikeLog.last ?? "None yet"
+    @State private var sound: SpikeSound = .threeShort
 
     var body: some View {
         NavigationStack {
@@ -76,6 +103,11 @@ struct AlarmKitSpikeView: View {
                 Text("Schedules a one-off alarm ~2 minutes out with a system Stop button plus a custom \"Done\" secondary button. Background the app, let it fire, and check what actually shows on the Watch.")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
+
+                Picker("Sound", selection: $sound) {
+                    ForEach(SpikeSound.allCases) { Text($0.label).tag($0) }
+                }
+                .pickerStyle(.segmented)
 
                 Button("Schedule test alarm (2 min)") {
                     Task { await scheduleTestAlarm() }
@@ -140,11 +172,11 @@ struct AlarmKitSpikeView: View {
                 attributes: attributes,
                 stopIntent: SpikeDismissIntent(alarmID: id.uuidString),
                 secondaryIntent: SpikeDoneIntent(alarmID: id.uuidString),
-                sound: .default
+                sound: sound.alertSound
             )
 
             _ = try await AlarmManager.shared.schedule(id: id, configuration: configuration)
-            status = "Scheduled for \(hour):\(String(format: "%02d", minute)) — background the app now and wait."
+            status = "Scheduled \(sound.label) for \(hour):\(String(format: "%02d", minute)) — background the app now and wait."
         } catch {
             status = "Error: \(error)"
         }
