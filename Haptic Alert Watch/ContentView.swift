@@ -13,14 +13,24 @@ import SwiftData
 
 struct ContentView: View {
     @Environment(\.modelContext) private var context
+    @Environment(\.scenePhase) private var scenePhase
     @Query(sort: \Reminder.createdAt) private var reminders: [Reminder]
     @Query(sort: \AlertCategory.name) private var categories: [AlertCategory]
 
     @State private var showingAlarmKitSpike = false
+    @State private var capacityWarning: String?
 
     var body: some View {
         NavigationStack {
             List {
+                if let capacityWarning {
+                    Section {
+                        Label(capacityWarning, systemImage: "exclamationmark.triangle.fill")
+                            .font(.caption)
+                            .foregroundStyle(.orange)
+                    }
+                }
+
                 Section("Reminders") {
                     if reminders.isEmpty {
                         Text("No reminders yet")
@@ -55,7 +65,21 @@ struct ContentView: View {
             .sheet(isPresented: $showingAlarmKitSpike) {
                 AlarmKitSpikeView()
             }
+            // SPEC §6: reconcile on foreground. Background execution can't be
+            // trusted, so returning to the app is the reliable moment to
+            // rebuild the window.
+            .task { await reconcile() }
+            .onChange(of: scenePhase) { _, phase in
+                guard phase == .active else { return }
+                Task { await reconcile() }
+            }
         }
+    }
+
+    private func reconcile() async {
+        let service = ReconciliationService(context: context)
+        await service.reconcile()
+        capacityWarning = service.capacityWarning
     }
 
     /// Temporary: exercises the model layer until step 6 builds real entry UI.
@@ -79,12 +103,14 @@ struct ContentView: View {
             schedule: .relativeToCompletion(interval: 3 * 3600, anchorReset: nil)
         )
         context.insert(reminder)
+        Task { await reconcile() }
     }
 
     private func deleteReminders(at offsets: IndexSet) {
         for index in offsets {
             context.delete(reminders[index])
         }
+        Task { await reconcile() }
     }
 }
 

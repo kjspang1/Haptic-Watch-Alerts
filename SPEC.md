@@ -261,6 +261,18 @@ Mandatory, per §3.3.
 4. On `maximumLimitReached`, shrink the window and retry rather than failing outward. Surface a warning if the user's configuration genuinely can't fit.
 5. Treat the schedule as something you **rebuild**, not mutate. Reconciliation should be idempotent.
 
+### 6.1 Only one relative occurrence is knowable
+
+A `fixed` schedule is clock-anchored, so every firing inside the window can be materialized now. A `relativeToCompletion` schedule **can only ever materialize its next single occurrence**: the one after it depends on when the user actually completes this one, which hasn't happened. Materializing a second would be inventing a completion time and would fire an alarm at a moment the user never earned.
+
+This is load-bearing for capacity too — relative reminders cost exactly one alarm each, no matter how short their interval.
+
+### 6.2 ⚠️ The 1-second `preAlert` workaround is not implemented
+
+§3.8 records a reported bug where alarms silently fail to present while an app is foregrounded in landscape, with a 1-second `preAlert` as the workaround. That is **not** implemented, deliberately: `preAlert` requires `Alarm.CountdownDuration`, which puts the alarm into a countdown presentation, and Apple's documentation states an app supporting countdown **must** ship a widget extension or "the system may unexpectedly dismiss alarms and fail to alert."
+
+Trading a landscape-only non-fire for a possible all-orientations non-fire is a bad trade on unverified ground. The current code uses the `.alarm()` configuration verified working on device in the §3.6 spike. **Revisit once a widget extension exists**, and verify both paths on hardware before adopting it.
+
 **Reconcile on:**
 
 - App foreground (always — you cannot trust background execution)
