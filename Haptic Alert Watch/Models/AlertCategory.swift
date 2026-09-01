@@ -58,12 +58,14 @@ struct AlertIdentity: Sendable, Equatable {
 
     static let fallback = AlertIdentity(soundID: "default")
 
-    /// Bundled sounds. iPhone-only by platform limitation, so keep the set
-    /// small and don't build UI that implies these change the Watch.
+    /// Currently one entry, matching §7.1's "design for one reliably
+    /// distinct alerting identity". The spike's generated test tones were
+    /// deliberately not promoted into this table — they were diagnostic
+    /// signals, not alert sounds. Adding real bundled sounds here later
+    /// needs no migration and no user action; they are iPhone-only either
+    /// way, since the Watch substitutes its standard ping (§3.1).
     static let all: [AlertIdentity] = [
         AlertIdentity(soundID: "default"),
-        AlertIdentity(soundID: "AlertOneLong.caf"),
-        AlertIdentity(soundID: "AlertThreeShort.caf"),
     ]
 
     static func assign(forExistingCount count: Int) -> AlertIdentity {

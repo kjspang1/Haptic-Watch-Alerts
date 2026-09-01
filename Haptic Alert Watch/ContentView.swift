@@ -4,10 +4,7 @@
 //
 //  Created by Kevin Spang on 8/24/26.
 //
-//  Placeholder shell. The real create/list/edit UI is SPEC §10 step 6.
-//  Until then this surfaces the scheduler's internal state so the alarm
-//  loop can be verified on device without a debugger attached — the intents
-//  run out-of-process, so a console isn't available when they matter most.
+//  The reminder list (SPEC §10 step 6).
 //
 
 import SwiftUI
@@ -18,15 +15,14 @@ struct ContentView: View {
     @Environment(\.scenePhase) private var scenePhase
 
     @Query(sort: \Reminder.createdAt) private var reminders: [Reminder]
-    @Query(sort: \AlertCategory.name) private var categories: [AlertCategory]
     @Query(sort: \ScheduledOccurrence.fireAt) private var occurrences: [ScheduledOccurrence]
 
-    @State private var showingAlarmKitSpike = false
+    @State private var editing: Reminder?
+    @State private var isCreating = false
+    @State private var showingDebug = false
     @State private var capacityWarning: String?
 
-    private var completions: [CompletionEvent] {
-        reminders.flatMap(\.completions).sorted { $0.resolvedAt > $1.resolvedAt }
-    }
+    private let engine = ScheduleEngine()
 
     var body: some View {
         NavigationStack {
@@ -39,71 +35,50 @@ struct ContentView: View {
                     }
                 }
 
-                Section("Reminders") {
-                    if reminders.isEmpty {
-                        Text("No reminders yet").foregroundStyle(.secondary)
-                    }
+                if reminders.isEmpty {
+                    ContentUnavailableView(
+                        "No reminders",
+                        systemImage: "bell.slash",
+                        description: Text("Add one to get started.")
+                    )
+                } else {
                     ForEach(reminders) { reminder in
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(reminder.title)
-                            Text(reminder.schedule.shortDescription)
-                                .font(.caption).foregroundStyle(.secondary)
-                            if let anchor = reminder.lastAnchoringCompletion {
-                                Text("anchor \(anchor.formatted(date: .omitted, time: .standard))")
-                                    .font(.caption2).foregroundStyle(.blue)
+                        Button {
+                            editing = reminder
+                        } label: {
+                            ReminderRow(reminder: reminder, nextFire: nextFire(for: reminder))
+                        }
+                        .buttonStyle(.plain)
+                        .swipeActions(edge: .trailing) {
+                            Button("Delete", role: .destructive) { delete(reminder) }
+                        }
+                        .swipeActions(edge: .leading) {
+                            // A fast way to silence something without losing
+                            // its history — the 3am "stop, I'll fix it later".
+                            Button(reminder.isEnabled ? "Pause" : "Resume") {
+                                toggle(reminder)
                             }
+                            .tint(reminder.isEnabled ? .orange : .green)
                         }
-                    }
-                    .onDelete(perform: deleteReminders)
-                }
-
-                // The live scheduler state. If an alarm doesn't fire, this is
-                // the first place to look: no row means reconciliation never
-                // planned it, and a nil alarm ID means AlarmKit refused it.
-                Section("Scheduled occurrences") {
-                    if occurrences.isEmpty {
-                        Text("None").foregroundStyle(.secondary)
-                    }
-                    ForEach(occurrences) { occurrence in
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(occurrence.fireAt.formatted(date: .omitted, time: .standard))
-                                .font(.callout)
-                            Text("\(occurrence.state.rawValue) · alarm \(occurrence.alarmKitID == nil ? "none" : "registered")")
-                                .font(.caption2)
-                                .foregroundStyle(occurrence.state == .orphaned ? .red : .secondary)
-                        }
-                    }
-                }
-
-                // Proves the out-of-process intent reached the store. If an
-                // alarm was resolved but nothing appears here, the intent ran
-                // but its SwiftData write didn't land.
-                Section("Completion history") {
-                    if completions.isEmpty {
-                        Text("None").foregroundStyle(.secondary)
-                    }
-                    ForEach(completions) { event in
-                        Text("\(event.action.rawValue) · \(event.resolvedAt.formatted(date: .omitted, time: .standard))")
-                            .font(.caption)
                     }
                 }
             }
             .navigationTitle("Alerts")
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
-                    Button("Spike") { showingAlarmKitSpike = true }
+                    Button("Debug") { showingDebug = true }
                 }
-                ToolbarItemGroup(placement: .topBarTrailing) {
-                    Button("Test loop", action: addTwoMinuteLoop)
-                    Button("Reconcile") { Task { await reconcile() } }
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button("Add", systemImage: "plus") { isCreating = true }
                 }
             }
-            .sheet(isPresented: $showingAlarmKitSpike) {
-                AlarmKitSpikeView()
+            .sheet(isPresented: $isCreating) { ReminderEditor() }
+            .sheet(item: $editing) { ReminderEditor(existing: $0) }
+            .sheet(isPresented: $showingDebug) {
+                SchedulerDebugView(occurrences: occurrences, reminders: reminders)
             }
             // SPEC §6: reconcile on foreground. Background execution can't be
-            // trusted, so returning to the app is the reliable moment to
-            // rebuild the window.
+            // trusted, so returning to the app is the reliable rebuild point.
             .task { await reconcile() }
             .onChange(of: scenePhase) { _, phase in
                 guard phase == .active else { return }
@@ -112,31 +87,29 @@ struct ContentView: View {
         }
     }
 
-    /// Creates a completion-relative reminder on a 2-minute interval, so the
-    /// full loop — fire, resolve from the Watch, re-anchor, reschedule — can
-    /// be observed in a couple of minutes instead of hours.
-    private func addTwoMinuteLoop() {
-        let category = categories.first ?? {
-            let new = AlertCategory(
-                name: "Test",
-                symbolName: "pills.fill",
-                colorHex: "#FF375F",
-                existingCount: categories.count
+    private func nextFire(for reminder: Reminder) -> Date? {
+        guard reminder.isEnabled else { return nil }
+        return occurrences
+            .filter { $0.reminderID == reminder.id && $0.state == .scheduled }
+            .map(\.fireAt)
+            .min()
+            ?? engine.nextFire(
+                for: reminder.schedule,
+                now: .now,
+                anchor: reminder.lastAnchoringCompletion,
+                createdAt: reminder.createdAt
             )
-            context.insert(new)
-            return new
-        }()
+    }
 
-        context.insert(Reminder(
-            title: "Test loop",
-            categoryID: category.id,
-            schedule: .relativeToCompletion(interval: 120, anchorReset: nil)
-        ))
+    private func delete(_ reminder: Reminder) {
+        context.delete(reminder)
+        try? context.save()
         Task { await reconcile() }
     }
 
-    private func deleteReminders(at offsets: IndexSet) {
-        for index in offsets { context.delete(reminders[index]) }
+    private func toggle(_ reminder: Reminder) {
+        reminder.isEnabled.toggle()
+        try? context.save()
         Task { await reconcile() }
     }
 
@@ -147,17 +120,99 @@ struct ContentView: View {
     }
 }
 
+struct ReminderRow: View {
+    let reminder: Reminder
+    let nextFire: Date?
+
+    var body: some View {
+        HStack {
+            VStack(alignment: .leading, spacing: 3) {
+                Text(reminder.title)
+                    .font(.body)
+                    .foregroundStyle(reminder.isEnabled ? .primary : .secondary)
+                Text(reminder.schedule.shortDescription)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                if !reminder.isEnabled {
+                    Text("Paused").font(.caption2).foregroundStyle(.orange)
+                } else if let nextFire {
+                    Text("Next \(nextFire.formatted(date: .omitted, time: .shortened))")
+                        .font(.caption2)
+                        .foregroundStyle(.blue)
+                }
+            }
+            Spacer()
+            Image(systemName: "chevron.right")
+                .font(.caption)
+                .foregroundStyle(.tertiary)
+        }
+        .contentShape(Rectangle())
+    }
+}
+
+/// Scheduler internals. The alarm intents run out-of-process, so when
+/// something misfires there's no console — this is where to look instead.
+struct SchedulerDebugView: View {
+    @Environment(\.dismiss) private var dismiss
+    let occurrences: [ScheduledOccurrence]
+    let reminders: [Reminder]
+
+    private var completions: [CompletionEvent] {
+        reminders.flatMap(\.completions).sorted { $0.resolvedAt > $1.resolvedAt }
+    }
+
+    var body: some View {
+        NavigationStack {
+            List {
+                Section("Scheduled occurrences") {
+                    if occurrences.isEmpty { Text("None").foregroundStyle(.secondary) }
+                    ForEach(occurrences) { occurrence in
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(occurrence.fireAt.formatted(date: .omitted, time: .standard))
+                            Text("\(occurrence.state.rawValue) · alarm \(occurrence.alarmKitID == nil ? "none" : "registered")")
+                                .font(.caption2)
+                                .foregroundStyle(occurrence.state == .orphaned ? .red : .secondary)
+                        }
+                    }
+                }
+                Section("Completion history") {
+                    if completions.isEmpty { Text("None").foregroundStyle(.secondary) }
+                    ForEach(completions.prefix(20)) { event in
+                        Text("\(event.action.rawValue) · \(event.resolvedAt.formatted(date: .omitted, time: .standard))")
+                            .font(.caption)
+                    }
+                }
+            }
+            .navigationTitle("Scheduler")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Done") { dismiss() }
+                }
+            }
+        }
+    }
+}
+
 extension ScheduleType {
     var shortDescription: String {
         switch self {
         case let .fixed(times, weekdays):
-            let days = weekdays.isEmpty ? "every day" : "\(weekdays.count) days/wk"
-            return "Fixed · \(times.count) time(s) · \(days)"
-        case let .relativeToCompletion(interval, _):
-            let minutes = Int(interval / 60)
-            return minutes < 60
-                ? "Every \(minutes)m after completion"
-                : "Every \(Int(interval / 3600))h after completion"
+            let days = weekdays.isEmpty ? "every day" : "\(weekdays.count) days a week"
+            let listed = times
+                .compactMap { Calendar.current.date(from: $0) }
+                .map { $0.formatted(date: .omitted, time: .shortened) }
+                .joined(separator: ", ")
+            return listed.isEmpty ? "Fixed · \(days)" : "\(listed) · \(days)"
+        case let .relativeToCompletion(interval, reset):
+            let hours = Int(interval) / 3600
+            let minutes = (Int(interval) % 3600) / 60
+            var text = hours > 0
+                ? (minutes > 0 ? "Every \(hours)h \(minutes)m" : "Every \(hours)h")
+                : "Every \(minutes)m"
+            text += " after completion"
+            if reset != nil { text += " · resets daily" }
+            return text
         case let .oneOff(date):
             return "Once · \(date.formatted(date: .abbreviated, time: .shortened))"
         }
