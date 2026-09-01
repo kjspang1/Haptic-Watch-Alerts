@@ -261,6 +261,18 @@ Mandatory, per §3.3.
 4. On `maximumLimitReached`, shrink the window and retry rather than failing outward. Surface a warning if the user's configuration genuinely can't fit.
 5. Treat the schedule as something you **rebuild**, not mutate. Reconciliation should be idempotent.
 
+### 6.0 ✅ The completion-relative loop is verified on hardware
+
+Tested on iPhone 14 Pro + Watch Series 11 with a 2-minute relative reminder, phone locked. The full cycle closed, unattended, and then repeated:
+
+1. Reconciliation planned the occurrence and AlarmKit accepted it.
+2. The alarm fired on both devices.
+3. **Done on the Watch stopped the alarm on both devices** — the explicit `stop()` in the custom intent (§3.6) works in the production path, not just the spike.
+4. The out-of-process intent **wrote a `CompletionEvent` to SwiftData** — previously the largest untested assumption, since intents may run with the app not running.
+5. The anchor moved, reconciliation ran *from inside the intent*, and the next occurrence was scheduled and fired.
+
+**This is §2's differentiator working**: alarm-grade delivery plus completion-relative recurrence, resolved from the wrist, re-arming itself with no user action and no foreground app. Everything from here is UI and polish over a proven engine.
+
 ### 6.1 Only one relative occurrence is knowable
 
 A `fixed` schedule is clock-anchored, so every firing inside the window can be materialized now. A `relativeToCompletion` schedule **can only ever materialize its next single occurrence**: the one after it depends on when the user actually completes this one, which hasn't happened. Materializing a second would be inventing a completion time and would fire an alarm at a moment the user never earned.
